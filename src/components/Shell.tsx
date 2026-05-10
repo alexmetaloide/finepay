@@ -1,58 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  Calendar as CalendarIcon, 
-  LogOut, 
-  Menu, 
-  X, 
-  Plus, 
+import {
+  LayoutDashboard,
+  Receipt,
+  Calendar as CalendarIcon,
+  Menu,
+  X,
   Bell,
   Sun,
   Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { api } from '../lib/api';
+import { storage } from '../lib/storage';
 
 interface ShellProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onLogout: () => void;
-  user: any;
 }
 
-export default function Shell({ children, activeTab, setActiveTab, onLogout, user }: ShellProps) {
+export default function Shell({ children, activeTab, setActiveTab }: ShellProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('finepay_dark') === 'true';
+  });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('finepay_dark', 'true');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('finepay_dark', 'false');
     }
   }, [isDarkMode]);
 
   useEffect(() => {
-    if (user) {
-      api.bills.list().then(bills => {
-        const today = new Date();
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(today.getDate() + 3);
+    const bills = storage.bills.list();
+    const today = new Date();
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(today.getDate() + 3);
 
-        const alerts = bills.filter((bill: any) => {
-          if (bill.isPaid) return false;
-          const dueDate = new Date(bill.dueDate);
-          return dueDate <= threeDaysFromNow;
-        }).sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    const alerts = bills
+      .filter((bill: any) => {
+        if (bill.isPaid) return false;
+        const dueDate = new Date(bill.dueDate);
+        return dueDate <= threeDaysFromNow;
+      })
+      .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
-        setNotifications(alerts);
-      }).catch(console.error);
-    }
-  }, [user]);
+    setNotifications(alerts);
+  }, [activeTab]);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -78,8 +77,8 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === item.id 
-                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' 
+                  activeTab === item.id
+                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
@@ -90,31 +89,17 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
           </nav>
 
           <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-4 px-4">
-              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-slate-600 dark:text-slate-300">
-                {user?.name?.[0].toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{user?.name}</p>
-                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-              </div>
-            </div>
-            <button 
-              onClick={onLogout}
-              className="flex w-full items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all font-mono"
-            >
-              <LogOut className="w-5 h-5" />
-              SAIR
-            </button>
+            <p className="text-xs text-slate-400 px-4 mb-2 font-medium uppercase tracking-wider">Dados locais</p>
+            <p className="text-xs text-slate-500 px-4">Suas contas ficam salvas neste dispositivo.</p>
           </div>
         </div>
       </aside>
 
       {/* Header Mobile */}
-      <header className="lg:hidden sticky top-0 bg-white dark:bg-slate-900 border-bottom border-slate-200 dark:border-slate-800 p-4 z-50 flex items-center justify-between shadow-sm">
+      <header className="lg:hidden sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 z-50 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
-           <Receipt className="text-indigo-600 w-6 h-6" />
-           <span className="font-bold">FinePay</span>
+          <Receipt className="text-indigo-600 w-6 h-6" />
+          <span className="font-bold">FinePay</span>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X /> : <Menu />}
@@ -124,7 +109,7 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div 
+          <motion.div
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -100, opacity: 0 }}
@@ -143,8 +128,8 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                     setIsMobileMenuOpen(false);
                   }}
                   className={`flex w-full items-center gap-4 px-4 py-4 rounded-xl text-lg font-medium ${
-                    activeTab === item.id 
-                      ? 'bg-indigo-600 text-white shadow-lg' 
+                    activeTab === item.id
+                      ? 'bg-indigo-600 text-white shadow-lg'
                       : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
@@ -152,15 +137,6 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                   {item.label}
                 </button>
               ))}
-              <div className="pt-10">
-                <button 
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-4 px-4 py-4 rounded-xl text-lg font-medium text-red-600"
-                >
-                  <LogOut className="w-6 h-6" />
-                  Sair
-                </button>
-              </div>
             </nav>
           </motion.div>
         )}
@@ -174,19 +150,19 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
               <h2 className="text-2xl font-bold tracking-tight">
                 {navItems.find(i => i.id === activeTab)?.label}
               </h2>
-              <p className="text-slate-500 text-sm">Bem-vindo de volta, {user?.name.split(' ')[0]}!</p>
+              <p className="text-slate-500 text-sm">Gerencie suas finanças com facilidade</p>
             </div>
-              <div className="flex gap-2 relative">
-               <button 
+            <div className="flex gap-2 relative">
+              <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
                 className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Alternar tema"
               >
                 {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              
+
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                   className={`p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative ${isNotificationsOpen ? 'bg-slate-100 dark:bg-slate-800 ring-2 ring-indigo-500/20' : ''}`}
                 >
@@ -199,9 +175,9 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                 <AnimatePresence>
                   {isNotificationsOpen && (
                     <>
-                      <div 
-                        className="fixed inset-0 z-40 lg:absolute lg:inset-auto" 
-                        onClick={() => setIsNotificationsOpen(false)} 
+                      <div
+                        className="fixed inset-0 z-40 lg:absolute lg:inset-auto"
+                        onClick={() => setIsNotificationsOpen(false)}
                       />
                       <motion.div
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -226,20 +202,20 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                                       <Bell className="w-4 h-4" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                       <p className="text-sm font-bold truncate">{n.name}</p>
-                                       <p className="text-xs text-slate-500">
-                                         {isOverdue ? 'Vencida em ' : 'Vence em '} 
-                                         {new Date(n.dueDate).toLocaleDateString('pt-BR')}
-                                       </p>
-                                       <button 
+                                      <p className="text-sm font-bold truncate">{n.name}</p>
+                                      <p className="text-xs text-slate-500">
+                                        {isOverdue ? 'Vencida em ' : 'Vence em '}
+                                        {new Date(n.dueDate).toLocaleDateString('pt-BR')}
+                                      </p>
+                                      <button
                                         onClick={() => {
                                           setActiveTab('bills');
                                           setIsNotificationsOpen(false);
                                         }}
                                         className="text-[10px] font-bold text-indigo-600 mt-2 hover:underline"
                                       >
-                                         VER DETALHES
-                                       </button>
+                                        VER DETALHES
+                                      </button>
                                     </div>
                                   </div>
                                 </div>
@@ -247,8 +223,8 @@ export default function Shell({ children, activeTab, setActiveTab, onLogout, use
                             })
                           ) : (
                             <div className="p-10 text-center text-slate-400">
-                               <Bell className="w-10 h-10 mx-auto mb-2 opacity-10" />
-                               <p className="text-sm">Nenhum alerta pendente</p>
+                              <Bell className="w-10 h-10 mx-auto mb-2 opacity-10" />
+                              <p className="text-sm">Nenhum alerta pendente</p>
                             </div>
                           )}
                         </div>

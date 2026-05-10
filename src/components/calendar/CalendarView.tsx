@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { api } from '../../lib/api';
+import { storage, type Bill } from '../../lib/storage';
 import { Receipt, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function CalendarView() {
-  const [bills, setBills] = useState<any[]>([]);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
-    api.bills.list().then(setBills);
+    setBills(storage.bills.list());
   }, []);
 
   const getBillsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = date.toLocaleDateString('en-CA'); // YYYY-MM-DD sem problemas de fuso
     return bills.filter(b => b.dueDate === dateStr);
   };
 
@@ -59,7 +59,7 @@ export default function CalendarView() {
           .dark .react-calendar__navigation button:hover {
             background-color: #1e293b;
           }
-           .dark .react-calendar__month-view__days__day {
+          .dark .react-calendar__month-view__days__day {
             color: #f1f5f9;
           }
           .react-calendar__tile {
@@ -88,8 +88,8 @@ export default function CalendarView() {
             text-decoration: none;
           }
         `}</style>
-        <Calendar 
-          onChange={(val: any) => setSelectedDate(val)} 
+        <Calendar
+          onChange={(val: any) => setSelectedDate(val)}
           value={selectedDate}
           tileContent={tileContent}
           locale="pt-BR"
@@ -102,37 +102,37 @@ export default function CalendarView() {
             <Receipt className="w-5 h-5 text-indigo-500" />
             Contas em {selectedDate.toLocaleDateString('pt-BR')}
           </h4>
-          
+
           <div className="space-y-4">
-             {selectedDayBills.length > 0 ? selectedDayBills.map(bill => (
-               <div key={bill.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                  <div className="flex justify-between items-start mb-2">
-                    <h5 className="font-bold text-slate-800 dark:text-white capitalize">{bill.name}</h5>
-                    <p className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-sm">
-                      R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded font-bold uppercase text-slate-500">
-                      {bill.category}
+            {selectedDayBills.length > 0 ? selectedDayBills.map(bill => (
+              <div key={bill.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between items-start mb-2">
+                  <h5 className="font-bold text-slate-800 dark:text-white capitalize">{bill.name}</h5>
+                  <p className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+                    R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded font-bold uppercase text-slate-500">
+                    {bill.category}
+                  </span>
+                  {bill.isPaid ? (
+                    <span className="text-emerald-500 flex items-center gap-1 text-xs font-bold uppercase">
+                      <CheckCircle2 className="w-4 h-4" /> Pago
                     </span>
-                    {bill.isPaid ? (
-                      <span className="text-emerald-500 flex items-center gap-1 text-xs font-bold uppercase">
-                        <CheckCircle2 className="w-4 h-4" /> Pago
-                      </span>
-                    ) : (
-                      <span className="text-amber-500 flex items-center gap-1 text-xs font-bold uppercase">
-                        <AlertCircle className="w-4 h-4" /> Pendente
-                      </span>
-                    )}
-                  </div>
-               </div>
-             )) : (
-               <div className="py-20 text-center text-slate-400">
-                 <Calendar className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                 <p className="text-sm font-medium">Nenhuma conta para este dia</p>
-               </div>
-             )}
+                  ) : (
+                    <span className="text-amber-500 flex items-center gap-1 text-xs font-bold uppercase">
+                      <AlertCircle className="w-4 h-4" /> Pendente
+                    </span>
+                  )}
+                </div>
+              </div>
+            )) : (
+              <div className="py-20 text-center text-slate-400">
+                <Receipt className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                <p className="text-sm font-medium">Nenhuma conta para este dia</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Trash2, 
-  CheckCircle2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Trash2,
+  CheckCircle2,
   Circle,
   AlertCircle,
-  MoreVertical,
   X,
   CreditCard,
   Calendar,
@@ -16,17 +15,15 @@ import {
   ChevronDown,
   Pencil
 } from 'lucide-react';
-import { api } from '../../lib/api';
+import { storage, type Bill } from '../../lib/storage';
 
 export default function BillList() {
-  const [bills, setBills] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pago' | 'pendente' | 'atrasado'>('all');
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Form State
   const initialFormState = {
     name: '',
     amount: '',
@@ -40,31 +37,20 @@ export default function BillList() {
 
   const categories = ['moradia', 'educação', 'transporte', 'alimentação', 'lazer', 'assinaturas', 'outros'];
 
-  useEffect(() => {
-    fetchBills();
-  }, []);
-
-  async function fetchBills() {
-    try {
-      const data = await api.bills.list();
-      setBills(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const handleTogglePaid = async (bill: any) => {
-    try {
-      await api.bills.update(bill.id, { isPaid: !bill.isPaid });
-      fetchBills();
-    } catch (err) {
-      alert("Erro ao atualizar status");
-    }
+  const loadBills = () => {
+    setBills(storage.bills.list());
   };
 
-  const handleEdit = (bill: any) => {
+  useEffect(() => {
+    loadBills();
+  }, []);
+
+  const handleTogglePaid = (bill: Bill) => {
+    storage.bills.update(bill.id, { isPaid: !bill.isPaid });
+    loadBills();
+  };
+
+  const handleEdit = (bill: Bill) => {
     setEditingId(bill.id);
     setFormData({
       name: bill.name,
@@ -77,44 +63,39 @@ export default function BillList() {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Deseja excluir esta conta?")) return;
-    try {
-      await api.bills.delete(id);
-      fetchBills();
-    } catch (err) {
-      alert("Erro ao excluir");
-    }
+  const handleDelete = (id: number) => {
+    if (!confirm('Deseja excluir esta conta?')) return;
+    storage.bills.delete(id);
+    loadBills();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (editingId) {
-        await api.bills.fullUpdate(editingId, {
-          ...formData,
-          amount: parseFloat(formData.amount as string)
-        });
-      } else {
-        await api.bills.create({
-          ...formData,
-          amount: parseFloat(formData.amount as string)
-        });
-      }
-      
-      setIsFormOpen(false);
-      setEditingId(null);
-      setFormData(initialFormState);
-      fetchBills();
-    } catch (err) {
-      alert("Erro ao salvar conta");
+    const data = {
+      name: formData.name,
+      amount: parseFloat(formData.amount as string),
+      dueDate: formData.dueDate,
+      category: formData.category,
+      notes: formData.notes,
+      recurrence: formData.recurrence,
+    };
+
+    if (editingId) {
+      storage.bills.update(editingId, data);
+    } else {
+      storage.bills.create(data);
     }
+
+    setIsFormOpen(false);
+    setEditingId(null);
+    setFormData(initialFormState);
+    loadBills();
   };
 
   const filteredBills = bills.filter(bill => {
     const matchesSearch = bill.name.toLowerCase().includes(search.toLowerCase());
     const isOverdue = new Date(bill.dueDate) < new Date() && !bill.isPaid;
-    
+
     if (filter === 'all') return matchesSearch;
     if (filter === 'pago') return matchesSearch && bill.isPaid;
     if (filter === 'pendente') return matchesSearch && !bill.isPaid && !isOverdue;
@@ -133,32 +114,32 @@ export default function BillList() {
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          <input 
+          <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            type="text" 
-            placeholder="Buscar contas..." 
+            type="text"
+            placeholder="Buscar contas..."
             className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
         </div>
-        
+
         <div className="flex gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:flex-none">
-             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-             <select 
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <select
               value={filter}
               onChange={(e: any) => setFilter(e.target.value)}
               className="w-full md:w-40 pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 outline-none text-sm font-medium focus:ring-2 focus:ring-indigo-500 appearance-none text-slate-900 dark:text-slate-100"
             >
-               <option value="all">Todos Status</option>
-               <option value="pendente">Pendente</option>
-               <option value="pago">Pago</option>
-               <option value="atrasado">Em Atraso</option>
-             </select>
-             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+              <option value="all">Todos Status</option>
+              <option value="pendente">Pendente</option>
+              <option value="pago">Pago</option>
+              <option value="atrasado">Em Atraso</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
           </div>
-          
-          <button 
+
+          <button
             onClick={() => {
               setEditingId(null);
               setFormData(initialFormState);
@@ -186,18 +167,18 @@ export default function BillList() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredBills.map((bill) => {
-                 const isOverdue = new Date(bill.dueDate) < new Date() && !bill.isPaid;
-                 return (
+                const isOverdue = new Date(bill.dueDate) < new Date() && !bill.isPaid;
+                return (
                   <tr key={bill.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
                         <div className={`p-2.5 rounded-xl ${bill.isPaid ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600'}`}>
-                           <CreditCard className="w-5 h-5" />
+                          <CreditCard className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="font-bold text-slate-800 dark:text-white capitalize">{bill.name}</p>
                           <p className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                             <Tag className="w-3 h-3" /> {bill.category}
+                            <Tag className="w-3 h-3" /> {bill.category}
                           </p>
                         </div>
                       </div>
@@ -218,35 +199,35 @@ export default function BillList() {
                       )}
                     </td>
                     <td className="px-6 py-5">
-                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          {new Date(bill.dueDate).toLocaleDateString('pt-BR')}
-                       </p>
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
-                         {bill.recurrence === 'none' ? 'Pagamento Único' : `Recorrência: ${bill.recurrence}`}
-                       </p>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {new Date(bill.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                        {bill.recurrence === 'none' ? 'Pagamento Único' : `Recorrência: ${bill.recurrence}`}
+                      </p>
                     </td>
                     <td className="px-6 py-5">
-                       <p className="font-mono font-bold text-lg">
-                         R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                       </p>
+                      <p className="font-mono font-bold text-lg">
+                        R$ {bill.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex justify-end gap-2">
-                        <button 
+                        <button
                           onClick={() => handleTogglePaid(bill)}
-                          title={bill.isPaid ? "Marcar como pendente" : "Marcar como pago"}
+                          title={bill.isPaid ? 'Marcar como pendente' : 'Marcar como pago'}
                           className={`p-2 rounded-lg transition-all ${bill.isPaid ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-600' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100'}`}
                         >
                           <CheckCircle2 className="w-5 h-5" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEdit(bill)}
                           title="Editar despesa"
                           className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 hover:bg-indigo-100 transition-all"
                         >
                           <Pencil className="w-5 h-5" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(bill.id)}
                           title="Excluir despesa"
                           className="p-2 rounded-lg bg-rose-50 dark:bg-rose-900/20 text-rose-600 hover:bg-rose-100 transition-all"
@@ -256,7 +237,7 @@ export default function BillList() {
                       </div>
                     </td>
                   </tr>
-                 );
+                );
               })}
               {filteredBills.length === 0 && (
                 <tr>
@@ -276,7 +257,7 @@ export default function BillList() {
       {/* Modal Form */}
       {isFormOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden scale-in-center">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold">{editingId ? 'Editar Conta' : 'Cadastrar Conta'}</h3>
@@ -288,15 +269,15 @@ export default function BillList() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Nome da Conta</label>
-                <input 
+                <input
                   required
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
-                  type="text" 
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  type="text"
                   placeholder="Ex: Aluguel, Internet..."
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
                 />
@@ -307,11 +288,11 @@ export default function BillList() {
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Valor</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
-                    <input 
+                    <input
                       required
                       value={formData.amount}
-                      onChange={e => setFormData({...formData, amount: e.target.value})}
-                      type="number" 
+                      onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                      type="number"
                       step="0.01"
                       placeholder="0,00"
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-mono text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
@@ -320,11 +301,11 @@ export default function BillList() {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Vencimento</label>
-                  <input 
+                  <input
                     required
                     value={formData.dueDate}
-                    onChange={e => setFormData({...formData, dueDate: e.target.value})}
-                    type="date" 
+                    onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
+                    type="date"
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 dark:text-slate-100"
                   />
                 </div>
@@ -333,14 +314,14 @@ export default function BillList() {
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Categoria</label>
                 <div className="relative">
-                   <select 
+                  <select
                     value={formData.category}
-                    onChange={e => setFormData({...formData, category: e.target.value})}
+                    onChange={e => setFormData({ ...formData, category: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none capitalize font-medium text-slate-900 dark:text-slate-100"
-                   >
-                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
-                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </div>
 
@@ -351,10 +332,10 @@ export default function BillList() {
                     <button
                       key={option}
                       type="button"
-                      onClick={() => setFormData({...formData, recurrence: option})}
+                      onClick={() => setFormData({ ...formData, recurrence: option })}
                       className={`px-4 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all ${
-                        formData.recurrence === option 
-                          ? 'bg-indigo-600 border-indigo-600 text-white' 
+                        formData.recurrence === option
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
                           : 'bg-transparent border-slate-200 dark:border-slate-700 text-slate-500'
                       }`}
                     >
@@ -364,7 +345,7 @@ export default function BillList() {
                 </div>
               </div>
 
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all transform hover:-translate-y-0.5 active:scale-95"
               >
