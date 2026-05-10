@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Workaround for libraries trying to polyfill fetch on a read-only property
+      (function() {
+        var _fetch = window.fetch;
+        try {
+          Object.defineProperty(window, 'fetch', {
+            enumerable: true,
+            configurable: true,
+            get: function() { return _fetch; },
+            set: function(v) { _fetch = v; }
+          });
+        } catch (e) {
+          console.warn("Could not redefine fetch, this might be okay if no library tries to overwrite it.");
+        }
+      })();
+
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global Error:", msg, "at", url, ":", line);
+        var root = document.getElementById('root');
+        if (root && !root.innerHTML) {
+          root.innerHTML = '<div style="padding: 20px; color: red; font-family: sans-serif;">' +
+            '<h3>Algo deu errado ao carregar o app</h3>' +
+            '<p style="color: #666; font-size: 14px;">' + msg + '</p>' +
+            '<button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #6366f1; color: white; border: none; rounded: 8px; cursor: pointer;">Recarregar</button>' +
+            '</div>';
+        }
+        return false;
+      };
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
